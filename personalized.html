@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlawlessMe Cosmetics</title>
+    <style>
+        /* Existing styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f8f0f5;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(to right, #ff9a9e, #fad0c4);
+            color: #fff;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h2 {
+            font-size: 2.5rem;
+        }
+
+        .nav-list {
+            display: flex;
+            justify-content: center;
+            gap: 1.5em;
+            list-style: none;
+            padding-top: 10px;
+        }
+
+        .nav-link {
+            color: #fff;
+            text-decoration: none;
+            font-size: 1rem;
+            transition: color 0.3s;
+        }
+
+        .nav-link:hover {
+            color: #ff4e78;
+        }
+
+        .content {
+            padding: 2em;
+            max-width: 800px;
+            margin: 20px auto;
+            text-align: center;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        select, button {
+            padding: 0.7em;
+            margin: 0.5em 0;
+            font-size: 1em;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            transition: box-shadow 0.2s;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        button {
+            background-color: #ff6f91;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        button:hover {
+            background-color: #ff4e78;
+            transform: scale(1.05);
+        }
+
+        #product-info {
+            margin-top: 2em;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .product-card {
+            background-color: #fff;
+            width: 220px;
+            padding: 1em;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+            transition: transform 0.2s;
+        }
+
+        .product-card:hover {
+            transform: scale(1.05);
+        }
+
+        .product-card img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+
+        footer {
+            background-color: #ff6f91;
+            color: #fff;
+            text-align: center;
+            padding: 10px 0;
+            width: 100%;
+            margin-top: 20px;
+        }
+    </style>
+    <script>
+        let products = [];
+        const wishlist = new Set(JSON.parse(localStorage.getItem('wishlist')) || []);
+
+        async function fetchProducts() {
+            try {
+                const response = await fetch('http://makeup-api.herokuapp.com/api/v1/products.json');
+                if (!response.ok) throw new Error("Failed to fetch products");
+                const data = await response.json();
+                products = data; // Use 'products = data' to overwrite and store all fetched products
+                populateProductTypes();
+                populatePriceRanges();
+            } catch (error) {
+                console.error('Error fetching products:', error);
+                alert('Failed to load products. Please try again later.');
+            }
+        }
+
+        function populateProductTypes() {
+            const productTypeSelect = document.getElementById('product_type_input');
+            const productTypes = [...new Set(products.map(product => product.product_type))].filter(Boolean);
+            
+            if (productTypes.length === 0) {
+                console.warn('No product types available.'); // Debugging log
+                return;
+            }
+
+            productTypes.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+                productTypeSelect.appendChild(option);
+            });
+        }
+
+        function populatePriceRanges() {
+            const priceRangeSelect = document.getElementById('price_range_input');
+            const priceRanges = ["0-10", "10-20", "20-30", "30-40", "40-50", "50+"];
+
+            priceRanges.forEach(range => {
+                const option = document.createElement('option');
+                option.value = range;
+                option.textContent = `$${range}`;
+                priceRangeSelect.appendChild(option);
+            });
+        }
+
+        function filterProducts() {
+            const productType = document.getElementById('product_type_input').value;
+            const priceRange = document.getElementById('price_range_input').value;
+
+            if (!productType || !priceRange) {
+                alert('Please select both a product type and a price range.');
+                return;
+            }
+
+            const [min, max] = priceRange === "50+" ? [50, Infinity] : priceRange.split('-').map(Number);
+            const filteredProducts = products.filter(product =>
+                product.product_type === productType &&
+                parseFloat(product.price) >= min && parseFloat(product.price) <= max
+            );
+
+            displayProductInfo(filteredProducts);
+        }
+
+        function displayProductInfo(filteredProducts) {
+            const productInfoDiv = document.getElementById('product-info');
+            productInfoDiv.innerHTML = '';
+
+            if (filteredProducts.length === 0) {
+                productInfoDiv.innerHTML = '<p class="no-results">No products found matching your criteria.</p>';
+                return;
+            }
+
+            filteredProducts.forEach(product => {
+                const productDiv = document.createElement('div');
+                productDiv.classList.add('product-card');
+                productDiv.innerHTML = `
+                    <h3>${product.name}</h3>
+                    <img src="${product.image_link}" alt="${product.name}">
+                    <p><strong>Brand:</strong> ${product.brand}</p>
+                    <p><strong>Price:</strong> $${product.price}</p>
+                    <button onclick="addToWishlist('${product.id}')">Add to Wishlist</button>
+                `;
+                productInfoDiv.appendChild(productDiv);
+
+                if (wishlist.has(product.id)) {
+                    const button = productDiv.querySelector('button');
+                    button.textContent = 'In Wishlist';
+                    button.disabled = true;
+                }
+            });
+        }
+
+        function addToWishlist(productId) {
+            if (wishlist.has(productId)) {
+                alert('This product is already in your wishlist!');
+            } else {
+                wishlist.add(productId);
+                localStorage.setItem('wishlist', JSON.stringify(Array.from(wishlist)));
+                alert('Product added to your wishlist!');
+                filterProducts(); // Re-run filterProducts to only display filtered products
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchProducts();
+            document.getElementById('button').addEventListener('click', filterProducts);
+        });
+    </script>
+</head>
+<body>
+    <header>
+        <h2>✨ FlawlessMe Cosmetics</h2>
+        <ul class="nav-list">
+            <li><a class="nav-link" href="wishlist.html">Your Wishlist</a></li>
+        </ul>
+    </header>
+
+    <div class="content">
+        <p>Select a product type and price range to find your perfect match:</p>
+        <select id="product_type_input">
+            <option value="">Select Product Type</option>
+        </select>
+        <select id="price_range_input">
+            <option value="">Select Price Range</option>
+        </select>
+        <button id="button">Find Products</button>
+
+        <div id="product-info"></div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 FlawlessMe Cosmetics. All Rights Reserved.</p>
+    </footer>
+</body>
+</html>
